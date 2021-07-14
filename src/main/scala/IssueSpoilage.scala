@@ -4,6 +4,8 @@ import io.circe.generic.auto.exportDecoder
 import io.circe.parser.decode
 import com.google.common.collect.{Range, TreeRangeMap}
 
+import java.time.Duration
+
 /**
   * Represents GitHub issues exported as follows:
   * `gh issue list -s all --json number,createdAt,closedAt`
@@ -41,6 +43,8 @@ object IssueSpoilage extends App {
   }
   println(events)
 
+  // create range map for efficient queries based on date/time instants
+  // each range maps to the issues open during that range
   val now = Instant.now()
   val issueMap = TreeRangeMap.create[Instant, Set[Issue]]()
   val issueSet = MSet.empty[Issue]
@@ -57,4 +61,16 @@ object IssueSpoilage extends App {
   }
 
   println(issueMap)
+  println(issueMap.asMapOfRanges().keySet().size)
+
+  def issueSpoilageAt(instant: Instant): Map[Issue, Duration] = {
+    val pairs = issueMap.get(instant).map {
+      case i @ Issue(_, createdAt, _) => i -> Duration.between(createdAt, instant)
+    }
+    pairs.toMap
+  }
+
+  // TODO could calculate issue spoilage as weighted average based on issue severity
+
+  println(issueSpoilageAt(Instant.parse("2020-12-15T00:00:00Z")))
 }
